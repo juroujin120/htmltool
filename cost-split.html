@@ -1,0 +1,225 @@
+<html>
+
+<head>
+
+<title>Cost Split</title>
+
+<script>
+// Initialize a cell with a string input and the given placeholder
+function initStringCell(e, value) {
+  e.classList.add("in");
+  let input = document.createElement("input");
+  input.setAttribute("type", "string");
+  input.setAttribute("placeholder", value);
+  input.addEventListener("input", checkExpand);
+  e.appendChild(input);
+}
+
+// Initialize a cell with a cost input (numeric)
+function initCostCell(e) {
+  e.classList.add("in");
+  let input = document.createElement("input");
+  input.setAttribute("type", "number");
+  input.setAttribute("step", "any");
+  input.setAttribute("placeholder", "cost");
+  input.addEventListener("input", checkExpand);
+  input.addEventListener("input", updateSubtotal);
+  e.appendChild(input);
+}
+
+// Initialize a cell with a weight input (numeric)
+function initWeightCell(e) {
+  e.classList.add("in");
+  let input = document.createElement("input");
+  input.setAttribute("type", "number");
+  input.setAttribute("step", "any");
+  input.setAttribute("min", "0");
+  input.addEventListener("input", checkExpand);
+  e.appendChild(input);
+}
+
+// Add another row to the input table, and init cells
+function addRow() {
+  let table = document.getElementById("item-table");
+  let row = table.insertRow(-1);
+  initStringCell(row.insertCell(-1), "Item " + (table.rows.length - 1));
+  initCostCell(row.insertCell(-1));
+  for (let i = 2; i < table.rows[0].cells.length; i++) {
+    initWeightCell(row.insertCell(-1));
+  }
+}
+
+// Add another column to the input and output tables, and init cells
+function addCol() {
+  let table = document.getElementById("item-table");
+  let n = table.rows[0].cells.length - 1;
+  initStringCell(table.rows[0].insertCell(-1), "Person " + n);
+  for (let i = 1; i < table.rows.length; i++) {
+    initWeightCell(table.rows[i].insertCell(-1));
+  }
+
+  let outTable = document.getElementById("out-table");
+  outTable.rows[0].insertCell(-1).classList.add("in");
+}
+
+// Check whether another row should be added to the input table, and do so
+function checkExpand() {
+  let table = document.getElementById("item-table");
+
+  let lastRow = table.rows[table.rows.length - 1];
+  let expandRow = false;
+  for (let i = 0; i < lastRow.cells.length; i++) {
+    if (lastRow.cells[i].firstChild.value) expandRow = true;
+  }
+  if (expandRow) addRow();
+}
+
+// Update the subtotal, and hint (placeholder) for total
+function updateSubtotal() {
+  let table = document.getElementById("item-table");
+  let totalCost = 0;
+  for (let i = 1; i < table.rows.length; i++) {
+    if (table.rows[i].cells[1].firstChild.value) {
+      totalCost += 1 * table.rows[i].cells[1].firstChild.value;
+    }
+  }
+  document.getElementById("subtotal").value = totalCost;
+  document.getElementById("total").setAttribute("placeholder", totalCost);
+}
+
+// Calculate the output.
+// This is an explicit button instead of auto because it can mutate the weights.
+function calculate() {
+  let table = document.getElementById("item-table");
+  let person = [];
+  for (let i = 2; i < table.rows[0].cells.length; i++) {
+    person[i] = 0;
+  }
+  for (let r = 1; r < table.rows.length; r++) {
+    let cells = table.rows[r].cells;
+
+    let hasCost = !!cells[1].firstChild.value;
+
+    let hasWeights = false;
+    for (let i = 2; i < cells.length; i++) {
+      if (cells[i].firstChild.value) hasWeights = true;
+    }
+    let hasName = !!cells[0].firstChild.value;
+
+    // Cost must be set, unless the row is totally empty (ignored)
+    if (!hasCost) {
+      if (!hasName && !hasWeights) continue;
+      else throw new Error("Missing cost");
+    }
+
+    // If some weights are specified, assume the rest are 0.
+    // If no weights are specified, assume all are 1.
+    // Fill in these assumptions explicitly into the input table.
+    let replacementValue = hasWeights ? 0 : 1;
+    let totalWeight = 0;
+    for (let i = 2; i < cells.length; i++) {
+      if (!cells[i].firstChild.value) {
+        cells[i].firstChild.value = replacementValue;
+      }
+      totalWeight += 1 * cells[i].firstChild.value;
+    }
+
+    for (let i = 2; i < cells.length; i++) {
+      person[i] += cells[1].firstChild.value * cells[i].firstChild.value / totalWeight;
+    }
+  }
+
+  let subtotal = document.getElementById("subtotal");
+  let total = document.getElementById("total");
+
+  let c = !!total.value ? (total.value / subtotal.value) : 1;
+
+  let outTable = document.getElementById("out-table");
+  for (let i = 2; i < person.length; i++) {
+    outTable.rows[0].cells[i].innerText = (c * person[i]).toFixed(2);
+  }
+}
+
+function tryCalculate() {
+  let errormsg = document.getElementById("errormsg");
+  errormsg.innerText = "";
+  try { calculate(); }
+  catch (err) {
+    errormsg.innerText = err.message;
+  }
+}
+
+function onLoad() {
+  addCol();
+  addCol();
+  addRow();
+  addRow();
+  addRow();
+}
+
+window.onload = onLoad;
+</script>
+
+<style>
+table {
+  border-collapse: collapse;
+  margin: 0.5em 0em;
+  font-size: 1.5em;
+}
+td, td input {
+  width: 5em;
+}
+td.in {
+  border: solid 1px lightgrey;
+}
+td:not(.in) {
+  border-left: solid 1px transparent;
+}
+table input[type=number], table input[type=string] {
+  border: none;
+  outline: none;
+}
+input {
+  font-size: inherit;
+}
+input[type=number], #out-table td {
+  text-align: right;
+}
+#errormsg {
+  color: red;
+}
+</style>
+
+</head>
+
+<body>
+
+<table id="item-table">
+<tr>
+  <td></td>
+  <td><input type="button" value="Person +" onclick="addCol()"></td>
+</tr>
+</table>
+
+<table>
+<tr>
+  <td class="in">Subtotal</td>
+  <td class="in"><input id="subtotal" type="number" readonly></td>
+</tr>
+<tr>
+  <td class="in"><label for="total">Total</label></td>
+  <td class="in"><input id="total" type="number" step="any"></td>
+</tr>
+</table>
+
+<span id="errormsg"></span>
+
+<table id="out-table">
+<tr>
+  <td><input type="button" value="calculate" onclick="tryCalculate()"></td>
+  <td></td>
+</tr>
+</table>
+
+</body>
+</html>

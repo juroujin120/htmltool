@@ -1,0 +1,65 @@
+<html>
+
+<head>
+
+<title>k consecutive successes in n trials</title>
+
+<script>
+function f(k, n, p) {
+  // A[x] for x in [0,k-1] is the probability that our run ends in x consecutive successes AND we have not yet seen k consecutive successes.
+  // A[k] is the probability we have ever seen k consecutive successes.
+  let A = [];
+  A[0] = 1.0;
+  for (let i = 1; i <= k; i++) {
+    A[i] = 0;
+  }
+  
+  for (let t = 0; t < n; t++) {
+    let B = [];
+    // We "fall down" to 0 if we have not yet seen k consecutive successes, and this trial fails.
+    B[0] = (1 - A[k]) * (1 - p);
+    // We "climb up one step" if this trial succeeds.
+    for (let i = 1; i <= k; i++) {
+      B[i] = A[i-1] * p;
+    }
+    // We "stay at the top" if we're already there.
+    B[k] += A[k];
+    
+    A = B;
+  }
+  
+  return A[k]
+}
+
+function onSubmit() {
+  let k = document.getElementById("k").value;
+  let n = document.getElementById("n").value;
+  let p = document.getElementById("p").value;
+
+  let answer = f(k, n, p);
+  document.getElementById("answer").innerText = "Answer: " + answer;
+}
+</script>
+</head>
+
+<body>
+
+<p>What is the probability of seeing at least k consecutive successes in n trials (each succeeding with probability p)?</p>
+
+<form onsubmit="onSubmit(); return false">
+<label for="k">k</label>
+<input id="k" type="number" min="1" value="3">
+<br>
+<label for="n">n</label>
+<input id="n" type="number" value="5">
+<br>
+<label for="p">p</label>
+<input id="p" type="number" step="any" min="0" max="1" value="0.5">
+<br>
+<input type="submit">
+</form>
+
+<p id="answer"></p>
+
+</body>
+</html>
