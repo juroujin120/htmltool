@@ -1,4 +1,4 @@
-# htmltool
+# [htmltool](https://juroujin120.github.io/htmltool/)
 
 A collection of misc tools implemented in HTML
 
