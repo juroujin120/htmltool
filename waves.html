@@ -1,0 +1,140 @@
+<html>
+
+<head>
+
+<script>
+
+// This function defines a 1-second sound wave.
+// Input: the current position of time [0, 1] within the second.
+// Output: the sample value [0, 1].
+function sample(x) {
+  const freq = f => y => (y * f) % 1;
+
+  const sawtooth = freq => y => (y * freq) % 1;
+  const sin = freq => y => 0.5 + 0.5 * Math.sin(y * freq * (2 * Math.PI));
+
+  const crescendo = y => 0.2 + 0.8 * y;
+  const loudQuietStep = y => y < 0.5 ? 1 : 0.3;
+
+  //return sawtooth(200)(x);
+  //return crescendo(x) * sawtooth(440)(x);
+  //return sin(200)(x);
+  //return loudQuietStep(x) * sin(440)(x);
+  return threeP(freq(220)(x));
+  //return makePwP([0.5,1.0,0.7,0.8,0.5,0.6,0.3,0.4,0.1,0.2,0.0,0.5])(freq(200)(x));
+}
+
+// *P functions:
+//   Input: the current position of time [0, 1] within the abstract period.
+//   Output: the sample value [0, 1].
+function sinP(x) {
+  return 0.5 + 0.5 * Math.sin(x * (2 * Math.PI));
+}
+
+function oneP(x) {
+  // https://www.wolframalpha.com/input/?i=plot+0.5+%2B+0.25+sin%282+pi+x%29+%2B+0.25+sin%286+pi+x%29+from+0+to+1
+  return 0.5 + 0.25 * Math.sin(x * 2 * Math.PI) + 0.25 * Math.sin(x * 6 * Math.PI);
+}
+
+function twoP(x) {
+  // Piecewise function
+  if (x < 0.25) return 0.5 + 0.5 * Math.sin(8 * Math.PI * x);
+  if (x < 0.50) return 0;
+  if (x < 0.75) return 0.5 - 0.25 * Math.sin(8 * Math.PI * x);
+  return 0;
+}
+
+function threeP(x) {
+  // plot 0.5 + 0.13(sin(2 pi x) + sin(4 pi x) + sin(6 pi x)+ sin(8 pi x)) from 0 to 1
+  return 0.5 + 0.13 * (
+    Math.sin(2 * Math.PI * x) +
+    Math.sin(4 * Math.PI * x) +
+    Math.sin(6 * Math.PI * x) +
+    Math.sin(8 * Math.PI * x)
+  );
+}
+
+// Input: list of at least 2 values y0, y1, ... yn each in [0, 1]
+// Output: a piecewise P function f such that f(0)=y0, f(1)=yn, and evenly spaced fenceposts f(xi)=yi.
+function makePwP(ys) {
+  const n = ys.length;
+  return x => {
+    let left = Math.trunc(x * (n-1));
+    if (left < 0) return ys[0];
+    if (left >= n-1) return ys[n-1];
+    let proportion = x * (n-1) - left;
+    return ys[left] + proportion * (ys[left+1] - ys[left]);
+  };
+}
+
+////////////////////////////////////////////
+
+function littleEndian32(i) {
+  return String.fromCharCode(i & 0xff, (i >> 8) & 0xff, (i >> 16) & 0xff, (i >> 24) & 0xff);
+}
+
+function littleEndian16(i) {
+  return String.fromCharCode(i & 0xff, (i >> 8) & 0xff);
+}
+
+// rescales a proportion in [0, 1] to an integer in [0, 255]
+function pTo255(p) {
+  return Math.trunc(Math.min(255,Math.max(0,p * 255)));
+}
+
+// Builds the WAVE file, as a string with 'characters' in [0, 255].
+//
+// http://soundfile.sapp.org/doc/WaveFormat/
+// http://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/WAVE.html
+function makeWave() {
+  const nChannels = 1;
+  const samplesPerSecond = 44100; // audio CDs use 44100
+  const bytesPerSample = 1;
+
+  let fmtChunk = 'fmt ';
+  fmtChunk += littleEndian32(16); // fmt chunk size
+  fmtChunk += littleEndian16(1); // format = PCM
+  fmtChunk += littleEndian16(nChannels); // channels
+  fmtChunk += littleEndian32(samplesPerSecond); // sample rate
+  fmtChunk += littleEndian32(samplesPerSecond * bytesPerSample * nChannels); // byte rate
+  fmtChunk += littleEndian16(bytesPerSample * nChannels); // block align
+  fmtChunk += littleEndian16(bytesPerSample * 8); // bits per sample
+
+  let sampleData = '';
+  // Repeat the soundwave 3 times
+  for (let i = 0; i < samplesPerSecond * 3; i++) {
+    const x = (i % samplesPerSecond) / samplesPerSecond;
+    const s = sample(x);
+    sampleData += String.fromCharCode(pTo255(s));
+  }
+
+  let dataChunk = 'data' + littleEndian32(sampleData.length) + sampleData;
+  if (dataChunk.length % 2 != 0) {
+    dataChunk += String.fromCharCode(0); // pad to even length
+  }
+
+  return 'RIFF' + littleEndian32(4 + fmtChunk.length + dataChunk.length) + 'WAVE' + fmtChunk + dataChunk;
+}
+
+function makeWaveDataUrl(str) {
+  return 'data:audio/wav;base64,' + btoa(str);
+}
+
+function go() {
+  const wave = makeWave();
+  const audio = document.getElementById('audio');
+  audio.src = makeWaveDataUrl(wave);
+}
+
+window.onload = go;
+</script>
+
+</head>
+
+<body>
+
+<audio id='audio' controls></audio>
+
+</body>
+
+</html>
