@@ -1,0 +1,112 @@
+<html>
+<head>
+<script>
+
+const maxSteps = 999999;
+const unitSize = 14; // tune according to svg's viewBox
+const dotSize = 0;
+
+// Calculates the value N located at (x, y) when labelling cells in a square spiral.
+// The origin (0, 0) is 1.
+function n(x, y) {
+  // special case where N is a perfect square
+  if (x >= 0 && x == -y) return Math.pow(2*x+1, 2);
+
+  const max = Math.max(Math.abs(x), Math.abs(y));
+  // a is the side length of the largest square less than n.
+  const a = 2 * max - 1;
+
+  let sum = a * a;
+  if (x == max) return sum + y + max; // Right side
+  sum += a + 1;
+  if (y == max) return sum - x + max; // Upper side
+  sum += a + 1;
+  if (x == -max) return sum - y + max; // Left side
+  sum += a + 1;
+  if (y == -max) return sum + x + max; // Lower side
+  throw `cannot calculate n(${x}, ${y})`
+}
+
+function knightMoves(x, y) {
+  return [ [x,y], [y,x], [-y,x], [-x,y], [-x,-y], [-y,-x], [y,-x], [x,-y] ];
+}
+
+// x: number in [0, 1]
+// fps: non-empty array of fenceposts to be evenly spaced from 0 to 1.
+function scale(x, fps) {
+  const p = x * (fps.length-1);
+  const leftIndex = Math.floor(p);
+  if (leftIndex < 0) return fps[0];
+  if (leftIndex >= fps.length-1) return fps[fps.length-1];
+  const r = p % 1;
+  return fps[leftIndex] * (1-r) + fps[leftIndex+1] * r;
+}
+
+function setup() {
+  const svgElement = x => document.createElementNS('http://www.w3.org/2000/svg', x);
+  const nPos = pos => n(pos[0], pos[1]);
+
+  const gradientColor = i => {
+    const n = 2016; // We know the knight stops after n steps
+    //                    [green, cyan, blue, purple, red]
+    const r = scale(i / n, [0x00, 0x00, 0x00, 0xff, 0xff]);
+    const g = scale(i / n, [0xff, 0xff, 0x00, 0x00, 0x00]);
+    const b = scale(i / n, [0x00, 0xff, 0xff, 0xff, 0x00]);
+    return `rgb(${r},${g},${b})` // seems to be tolerant of decimal values
+  }
+
+  const svg = document.getElementById('svg');
+
+  // fgGroup will be in the foreground because it appears after bgGroup.
+  const bgGroup = svg.appendChild(svgElement('g'));
+  const fgGroup = svg.appendChild(svgElement('g'));
+
+  let pos = [0, 0];
+  const seen = {}; // Map from N -> true
+  seen[nPos(pos)] = true;
+
+  for (let i = 1; i < maxSteps; i++) {
+    let bestN = null;
+    let nextPos = null;
+    for (const cand of knightMoves(1, 2)) {
+      const candPos = [pos[0] + cand[0], pos[1] + cand[1]];
+      const candN = nPos(candPos);
+      if (!seen[candN] && (bestN == null || candN < bestN)) {
+        bestN = candN;
+        nextPos = candPos;
+      }
+    };
+    if (bestN == null) {
+      console.log(`Step ${i}: end of journey at ${pos} = ${nPos(pos)}`);
+      break;
+    }
+    console.log(`Step ${i}: moving to ${nextPos}= ${bestN}`);
+    seen[bestN] = true;
+
+    const line = fgGroup.appendChild(svgElement('line'));
+    line.setAttribute('x1', pos[0] * unitSize);
+    line.setAttribute('y1', pos[1] * -unitSize);
+    line.setAttribute('x2', nextPos[0] * unitSize);
+    line.setAttribute('y2', nextPos[1] * -unitSize);
+    line.setAttribute('stroke', gradientColor(i));
+
+    if (dotSize > 0) {
+      const dot = bgGroup.appendChild(svgElement('circle'));
+      dot.setAttribute('cx', nextPos[0] * unitSize);
+      dot.setAttribute('cy', nextPos[1] * -unitSize);
+      dot.setAttribute('r', dotSize);
+      dot.setAttribute('fill', 'lightgrey');
+    }
+
+    pos = nextPos;
+  }
+}
+window.addEventListener('DOMContentLoaded', setup);
+</script>
+</head>
+
+<body>
+<svg id="svg" viewBox="-400 -400 800 800" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+</svg>
+</body>
+</html>
