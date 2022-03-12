@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>Coupon Collector Calculator</title>
+
+<style>
+table.distrib td:last-child {
+  width: 20em;
+}
+div.bar {
+  display: inline-block;
+  background-color: grey;
+}
+
+table {
+  border-collapse: collapse;
+}
+th:not(:empty), td:not(:empty) {
+  border: 1px solid lightgrey;
+}
+th, td {
+  padding: 0.2em 0.5em;
+  color: black;
+}
+td.zero {
+  color: lightgrey;
+}
+</style>
+
+<script>
+// Stop when the probability of having all coupons reaches almostOne, or we have simulated maxTrials
+const almostOne = 0.99;
+const maxTrials = 99999;
+
+// Returns P where P[i][j] is the probability of having j \in [0,n] distinct coupons after the i'th trial
+// P[0] represents the initial conditions; specifically P[0][k] = 1
+// P[i][0] is always zero for i>0 and exists just to make the formula more convenient
+function calcP(n, k) {
+  const P = [];
+  P[0] = new Array(n+1).fill(0);
+  P[0][k] = 1;
+  for (let trial = 0; trial < maxTrials; trial++) {
+    const lastRow = P[P.length - 1];
+    const thisRow = new Array(n+1);
+    P.push(thisRow);
+
+    thisRow[0] = 0; // Impossible to have 0 coupons anymore
+    for (let j = 1; j <= n; j++) {
+      // The probability of ending up at j coupons is the sum of:
+      //           j/n    staying at j by getting a duplicate
+      //   1 - (j-1)/n    upgrading from j-1 to j
+      thisRow[j] = (j * lastRow[j] + (n-j+1) * lastRow[j-1]) / n;
+    }
+    
+    if (thisRow[n] >= almostOne) break;
+  }
+  return P;
+}
+
+function showDistrib(P) {
+  const n = P[0].length - 1;
+
+  // D[i] = probability of completing collection on trial i
+  // The sum of all D[i] should be 1.0
+  const D = new Array(P.length);
+  D[0] = P[0][n];
+  for (let i = 1; i < P.length; i++) {
+    D[i] = P[i][n] - P[i-1][n];
+  }
+
+  const table = document.querySelector('table.distrib');
+  table.replaceChildren([]);
+
+  table.appendChild(document.createElement('caption')).textContent =
+    'Distribution of trials needed. Long tails truncated.';
+
+  const max = Math.max(...D);
+  for (let i = 0; i < D.length; i++) {
+    if (D[i] / max < 0.05) continue; // drop small values
+
+    const tr = table.appendChild(document.createElement('tr'));
+    tr.appendChild(document.createElement('th')).textContent = `${i}`;
+    tr.appendChild(document.createElement('td')).textContent = `${D[i].toFixed(5)}`;
+    const divBar = tr.appendChild(document.createElement('td')).appendChild(document.createElement('div'));
+    divBar.classList.add('bar');
+    divBar.style.width = `${(100 * D[i] / max).toFixed(2)}%`;
+    divBar.appendChild(document.createElement('wbr')); // make it non-empty
+  }
+}
+
+function showP(P) {
+  const n = P[0].length - 1;
+  const table = document.querySelector('table.allprob');
+  table.replaceChildren([]);
+
+  table.appendChild(document.createElement('caption')).textContent =
+    'Probability of having c coupons after r trials';
+
+  const r1 = table.appendChild(document.createElement('tr'));
+  r1.appendChild(document.createElement('th'));
+  for (let j = 1; j <= n; j++) {
+    const th = r1.appendChild(document.createElement('th'));
+    th.textContent = `${j}`;
+  }
+  for (let i = 1; i < P.length; i++) {
+    const tr = table.appendChild(document.createElement('tr'));
+    tr.appendChild(document.createElement('th')).textContent = `${i}`;
+    for (let j = 1; j <= n; j++) {
+      const td = tr.appendChild(document.createElement('td'));
+      td.textContent = `${P[i][j].toFixed(5)}`;
+      if (td.textContent.match(/^[0.]+$/)) td.classList.add('zero');
+    }
+  }
+}
+
+function updateOutput() {
+  const n = parseInt(document.getElementById('n').value);
+  const k = parseInt(document.getElementById('k').value);
+
+  let E = 0;
+  for (let i = k+1; i <= n; i++) {
+    E += n / (n-i+1);
+  }
+  document.getElementById('expectation').textContent = `Expected trials: ${E}`;
+
+  const P = calcP(n, k);
+  showDistrib(P);
+  showP(P);
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  document.querySelector('form').addEventListener('submit', e => {
+    e.preventDefault();
+    updateOutput();
+  });
+});
+</script>
+</head>
+<body>
+
+<p>
+How many trials does it take to collect all n coupons, starting with k already? (k <= n)
+<br>
+<a href="https://en.wikipedia.org/wiki/Coupon_collector%27s_problem">Wikipedia: Coupon collector's problem</a>
+</p>
+
+<form>
+<label for="n">n</label>
+<input id="n" type="number" min="1" value="6">
+<br>
+<label for="k">k</label>
+<input id="k" type="number" min="0" value="0">
+<br>
+<button>Calculate</button>
+</form>
+
+<p id="expectation"></p>
+
+<table class="distrib"></table>
+<br>
+<table class="allprob"></table>
+
+</body>
+</html>
