@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>Color blend</title>
+
+<style>
+canvas { display: block; }
+a { font-family: monospace; }
+a:not(:hover) { text-decoration: none; }
+</style>
+
+<script>
+function getParams() {
+  const p = new URLSearchParams(window.location.search);
+  const isInt = s => parseInt(s) === Number(s);
+  const isFloat = s => parseFloat(s) === Number(s);
+  const getInt = (n, d) => isInt(p.get(n)) ? parseInt(p.get(n)) : d;
+  const getFloatList = (n, d) => (L=>L.length?L:d)(p.getAll(n).filter(isFloat).map(x => parseFloat(x)));
+
+  return {
+    c1: getInt('c1', 0xff0000),
+    c2: getInt('c2', 0x00ff00),
+    w: getInt('w', 256),
+    h: getInt('h', 100),
+    ps: getFloatList('p', [2.0]),
+  };
+}
+
+// 0x007fff -> [0, 127, 255]
+function n2rgb(n) {
+  return [(n >> 16) & 0xff, (n >> 8) & 0xff, (n >> 0) & 0xff];
+}
+// [0, 127, 255] -> 0x007fff
+function rgb2n([r, g, b]) {
+  return ((r & 0xff) << 16) + ((g & 0xff) << 8) + ((b & 0xff) << 0);
+}
+// 0x007fff -> '#007fff'
+function n2css(n) {
+  return `#${n.toString(16).padStart(6,'0')}`
+}
+
+function blend([r1,g1,b1], [r2,g2,b2], mix, pow) {
+  const f = (a, b) => Math.pow(
+    (1-mix) * Math.pow(a, pow) + mix * Math.pow(b, pow),
+    1/pow);
+  return [f(r1, r2), f(g1, g2), f(b1, b2)];
+}
+
+function makeDiv(c1, c2, [w, h]) {
+  const div = document.createElement('div');
+  [div.style.width, div.style.height] = [`${w}px`, `${h}px`];
+  div.style.backgroundImage = `linear-gradient(to right, ${n2css(c1)}, ${n2css(c2)})`;
+  return div;
+}
+function makeCanvas(c1, c2, [w, h], pow) {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  [canvas.width, canvas.height] = [w, h];
+  for (let i = 0; i < w; i++) {
+    const blended = blend(n2rgb(c1), n2rgb(c2), i/(w-1), pow);
+    ctx.fillStyle = n2css(rgb2n(blended));
+    ctx.fillRect(i, 0, 1, canvas.height);
+  }
+  return canvas;
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  const p = getParams();
+
+  const table = document.querySelector('table');
+  const newRow = (label, node) => {
+    const tr = table.appendChild(document.createElement('tr'));
+    tr.appendChild(document.createElement('td')).textContent = label;
+    tr.appendChild(document.createElement('td')).appendChild(node);
+  };
+
+  newRow('css linear gradient', makeDiv(p.c1, p.c2, [p.w, p.h]));
+  for (const pow of p.ps) {
+    newRow(`canvas p=${pow}`, makeCanvas(p.c1, p.c2, [p.w, p.h], pow));
+  }
+});
+</script>
+</head>
+<body>
+
+<table></table>
+
+<ul>
+  <li><a href="?w=512&h=200">?w=512&h=200</a></li>
+  <li><a href="?c1=0x0000ff&c2=0xffff00">?c1=0x0000ff&c2=0xffff00</a></li>
+  <li><a href="?p=1">?p=1</a></li>
+  <li><a href="?p=0.5&p=1&p=2&p=4">?p=0.5&p=1&p=2&p=4</a></li>
+</ul>
+
+</body>
+</html>
