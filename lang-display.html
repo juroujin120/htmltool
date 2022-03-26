@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<style>
+td:first-child { font-family: monospace; }
+td[lang] { font-size: 5em; }
+a:not(:hover) { text-decoration: none; }
+</style>
+
+<script>
+function update() {
+  const txt = document.getElementById('in').value;
+  document.querySelectorAll('td[lang]').forEach(td => td.textContent = txt);
+}
+window.addEventListener('DOMContentLoaded', () => {
+  const p = new URLSearchParams(window.location.search);
+  const txt = p.get('txt') ?? '\u6D77';
+  const langParam = p.get('lang') ?? 'ja,zh-Hant,zh-Hans';
+  const langs = langParam.split(',').map(x => x.trim());
+
+  const table = document.getElementById('out');
+  for (const lang of langs) {
+    const tr = table.appendChild(document.createElement('tr'));
+    tr.appendChild(document.createElement('td')).textContent = 'lang=' + lang;
+    tr.appendChild(document.createElement('td')).lang = lang;
+  }
+
+  document.getElementById('in').value = txt;
+  update();
+});
+</script>
+</head>
+
+<body>
+See how your browser displays the same text, when told that it's in different languages via HTML <code>lang</code>.
+<ul>
+  <li><a href="?txt=%E9%81%8E&lang=ja,zh-Hant,zh-Hans">Example: &#x904E; ja,zh-Hant,zh-Hans</a></li>
+  <li><a href="?txt=%E5%A4%A9&lang=ja,zh">Example: &#x5929; ja,zh</a></li>
+</ul>
+
+<input id="in" oninput="update();">
+
+<table id="out"></table>
+</body>
+</html>
