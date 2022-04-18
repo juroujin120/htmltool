@@ -4,6 +4,8 @@ A collection of misc tools implemented in HTML
 
 [cost-split](cost-split.html) calculates how to split a bill among multiple people
 
+[clean-copy](clean-copy.html) cleans up HTML for copying and pasting between rich text docs
+
 [image-concat](image-concat.html) joins concatenates multiple images in a row or a column
 
 [coupon-collector](coupon-collector.html) simulates the coupon collector's problem
