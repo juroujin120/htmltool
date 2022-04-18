@@ -1,0 +1,84 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>Clean copy-paste</title>
+<style>
+#cleancopy-editable-content {
+  border: solid 1px lightgrey;
+  padding: 0.5em;
+  min-height: 10em;
+  resize: both;
+  overflow: auto;
+}
+</style>
+<script>
+function cleanCloneList(nodes) {
+  const allowedTags = ['A', 'UL', 'OL', 'LI', 'P', 'BR', 'DIV'];
+  const allowedAttrs = {'A': ['HREF']};
+
+  const out = [];
+  for (const n of nodes) {
+    if (n.nodeType == Node.TEXT_NODE) {
+      out.push(n.cloneNode());
+    } else if (n.nodeType == Node.ELEMENT_NODE) {
+      if (allowedTags.includes(n.tagName)) {
+        const elem = document.createElement(n.tagName);
+        for (attr of allowedAttrs[n.tagName] ?? []) {
+          if (n.hasAttribute(attr)) {
+            elem.setAttribute(attr, n.getAttribute(attr));
+          }
+        }
+        elem.append(...cleanCloneList(n.childNodes));
+        out.push(elem);
+      } else {
+        console.log('unwrapping non-allowed tag:', n.tagName);
+        // Non-allowed tag: drop the tag itself, but promote its children
+        out.push(...cleanCloneList(n.childNodes));
+      }
+    } else {
+      // Unknown node type: do nothing (drop it)
+      console.warn('dropping unknown node:', n);
+    }
+  }
+  return out;
+}
+function clean() {
+  const div = document.getElementById('cleancopy-editable-content');
+  div.replaceChildren(...cleanCloneList(div.childNodes));
+}
+window.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('paste', e => {
+    // setTimeout is a hack to make sure the text is fully pasted first.
+    setTimeout(() => { clean(); }, 0);
+  });
+  // I wasn't able to get navigator.clipboard API to work with anything
+  // other then plain text, so we have to intercept real copy events.
+  document.addEventListener('copy', e => {
+    const div = document.getElementById('cleancopy-editable-content');
+    e.clipboardData.setData('text/plain', div.textContent);
+    e.clipboardData.setData('text/html', div.innerHTML);
+    e.preventDefault();
+  });
+});
+</script>
+</head>
+<body>
+<pre>
+Text pasted into the contenteditable below will be stripped of styles and non-whitelisted tags.
+
+Copy events are intercepted and replaced with the (entire) innerHTML of the contenteditable,
+avoiding the explicit styling (fonts, colors, etc) that browsers usually inject.
+
+Useful when you want to copy text between docs / emails, keeping links and lists, but not styles.
+
+TODO: Add options for which tags or styles are permitted.
+TODO: Better handling of whitespace (e.g. replace nbsp)
+
+Not intended to provide any security features.
+</pre>
+<div id="cleancopy-editable-content" contenteditable="true">
+Paste your content here
+</div>
+</body>
+</html>
